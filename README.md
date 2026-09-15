@@ -1,5 +1,16 @@
 # DurationStatistics
 
+## Static assembly source line
+
+This source line uses explicit C++ constructor dependencies and ordered instance
+arguments. Inspect the current primary header with `xrobot_mod_parser --path .`;
+its declarations, not old manifest/config examples, define the interface.
+Historical HardwareContainer/ApplicationManager examples below apply only to the
+older dynamic source tags. Device/protocol descriptions remain relevant.
+See the XRobot [migration guide](https://github.com/xrobot-org/XRobot/blob/dev/MIGRATION.md).
+Compilation is not hardware validation; retain version-specific board evidence.
+
+
 `DurationStatistics` 是一个面向 LibXR 的通用作用域耗时统计模块。
 它只累计测量结果，不负责打印、文件输出或消息发布；应用可以在自己的
 `OnMonitor()` 中读取快照并决定输出格式。

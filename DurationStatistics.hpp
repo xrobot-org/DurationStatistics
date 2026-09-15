@@ -1,5 +1,13 @@
 #pragma once
 
+// clang-format off
+/* === MODULE MANIFEST V2 ===
+module_description: DurationStatistics reusable library
+standalone: false
+depends: []
+=== END MANIFEST === */
+// clang-format on
+
 #include <cstdint>
 
 #include "mutex.hpp"
