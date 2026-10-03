@@ -17,68 +17,59 @@ namespace XRobot
 {
 
 /**
- * @brief 记录作用域耗时的累计统计 / Accumulated statistics for scoped durations
+ * @brief 作用域耗时的累计统计。
+ *        Accumulated statistics for scoped durations.
  *
- * 该类只负责采集统计数据，不负责输出。将 `Measure()` 返回的对象留在待测
- * 作用域内，其析构函数会自动提交一次耗时。业务线程可以并发记录，监控线程
- * 可以通过 `GetSummary()` 读取一致快照。
+ * 该类采集统计数据，输出由使用方负责。把 `Measure()` 返回的对象放在待测作用域内，
+ * 其析构函数提交一次耗时。业务线程可以并发记录，监控线程通过 `GetSummary()` 读取
+ * 一致快照。记录和读取使用 LibXR 互斥锁，仅在任务上下文调用。
  *
- * This class only collects statistics and does not perform any output. Keep the
- * object returned by `Measure()` in the measured scope; its destructor submits
- * one duration. Worker threads may record concurrently, while a monitor thread
- * may read a consistent snapshot through `GetSummary()`.
- *
- * @note 记录和读取使用 LibXR 互斥锁，只能从任务上下文调用，不可从中断服务
- *       程序调用。 / Recording and reading use a LibXR mutex and must be called
- *       from task context, not from an interrupt service routine.
+ * This class collects statistics; the output is the responsibility of the user. Place
+ * the object returned by `Measure()` in the measured scope; its destructor submits one
+ * duration. Worker threads can record concurrently, and a monitor thread reads a
+ * consistent snapshot through `GetSummary()`. Recording and reading use a LibXR mutex
+ * and are called from task context only.
  */
 class DurationStatistics
 {
  public:
   /**
-   * @brief 统计快照 / Statistics snapshot
+   * @brief 统计快照。
+   *        Statistics snapshot.
    */
   struct Summary
   {
-    /** @brief 已记录的样本数 / Number of recorded samples */
-    uint64_t sample_count = 0;
-
-    /** @brief 平均耗时，单位为微秒 / Average duration in microseconds */
-    uint64_t average_us = 0;
-
-    /** @brief 最小耗时，单位为微秒 / Minimum duration in microseconds */
-    uint64_t minimum_us = 0;
-
-    /** @brief 最大耗时，单位为微秒 / Maximum duration in microseconds */
-    uint64_t maximum_us = 0;
+    uint64_t sample_count = 0;  ///< 已记录的样本数
+                                ///< Number of recorded samples
+    uint64_t average_us = 0;    ///< 平均耗时，单位 µs
+                                ///< Average duration in µs
+    uint64_t minimum_us = 0;    ///< 最小耗时，单位 µs
+                                ///< Minimum duration in µs
+    uint64_t maximum_us = 0;    ///< 最大耗时，单位 µs
+                                ///< Maximum duration in µs
   };
 
   /**
-   * @brief 一个作用域测量 / One scoped measurement
+   * @brief 一个作用域测量。
+   *        One scoped measurement.
    *
-   * 该对象不可复制或移动，确保一个待测作用域只提交一次样本。统计器必须比
-   * 其创建的测量对象存活更久。
+   * 复制与移动均被删除，一个待测作用域只提交一次样本。所属的统计器的生命周期长于
+   * 该对象。
    *
-   * The object is neither copyable nor movable, ensuring that one measured
-   * scope submits exactly one sample. Its statistics collector must outlive it.
+   * Copy and move are deleted, so one measured scope submits one sample. The owning
+   * collector outlives this object.
    */
   class ScopedMeasurement
   {
    public:
-    /**
-     * @brief 禁止复制和移动 / Disable copy and move operations
-     *
-     * 一个作用域测量对象只能由 `Measure()` 创建并析构一次。
-     * A scoped measurement is created and destroyed exactly once through
-     * `Measure()`.
-     */
     ScopedMeasurement(const ScopedMeasurement&) = delete;
     ScopedMeasurement& operator=(const ScopedMeasurement&) = delete;
     ScopedMeasurement(ScopedMeasurement&&) = delete;
     ScopedMeasurement& operator=(ScopedMeasurement&&) = delete;
 
     /**
-     * @brief 结束测量并提交耗时 / Finish and submit the measurement
+     * @brief 结束测量并提交耗时。
+     *        Finish the measurement and submit the duration.
      */
     ~ScopedMeasurement() noexcept;
 
@@ -86,9 +77,13 @@ class DurationStatistics
     friend class DurationStatistics;
 
     /**
-     * @brief 创建作用域测量对象 / Construct a scoped measurement
-     * @param owner 接收测量结果的统计器 / Collector receiving the result
-     * @param start 待测作用域的开始时间 / Start time of the measured scope
+     * @brief 创建作用域测量对象。
+     *        Construct a scoped measurement.
+     *
+     * @param owner 接收测量结果的统计器。
+     *              Collector that receives the result.
+     * @param start 待测作用域的开始时间。
+     *              Start time of the measured scope.
      */
     ScopedMeasurement(DurationStatistics& owner,
                       LibXR::MicrosecondTimestamp start) noexcept
@@ -101,27 +96,25 @@ class DurationStatistics
   };
 
   /**
-   * @brief 构造空的耗时统计器 / Construct an empty duration statistics
-   * collector
+   * @brief 构造空的耗时统计器。
+   *        Construct an empty duration statistics collector.
    */
   DurationStatistics() = default;
 
-  /**
-   * @brief 禁止复制和移动 / Disable copy and move operations
-   *
-   * 统计器拥有同步原语及累计状态，不能复制或移动。
-   * The collector owns synchronization state and accumulated values, so it
-   * cannot be copied or moved.
-   */
+  /// 统计器持有同步状态和累计值，复制与移动均被删除。
+  /// The collector holds synchronization state and accumulated values; copy and move
+  /// are deleted.
   DurationStatistics(const DurationStatistics&) = delete;
   DurationStatistics& operator=(const DurationStatistics&) = delete;
   DurationStatistics(DurationStatistics&&) = delete;
   DurationStatistics& operator=(DurationStatistics&&) = delete;
 
   /**
-   * @brief 开始一次作用域测量 / Start one scoped measurement
-   * @return 测量对象，其析构会自动记录耗时。
-   *         A measurement whose destructor records the elapsed duration.
+   * @brief 开始一次作用域测量。
+   *        Start one scoped measurement.
+   *
+   * @return 测量对象，其析构记录经过的耗时。
+   *         Measurement whose destructor records the elapsed duration.
    */
   [[nodiscard]] ScopedMeasurement Measure() noexcept
   {
@@ -129,13 +122,15 @@ class DurationStatistics
   }
 
   /**
-   * @brief 读取统计快照 / Read a statistics snapshot
-   * @return 次数、平均值、最小值和最大值，单位均为微秒。
-   *         Sample count, average, minimum, and maximum, all in microseconds.
+   * @brief 读取统计快照。
+   *        Read a statistics snapshot.
    *
-   * @note 平均值采用整数除法；没有样本时四个字段均为 `0`。
-   *       The average uses integer division; all four fields are `0` when no
-   *       sample has been recorded.
+   * 平均值采用整数除法；没有样本时四个字段均为 `0`。
+   * The average uses integer division; all four fields are `0` when no sample has been
+   * recorded.
+   *
+   * @return 样本数、平均值、最小值和最大值，耗时单位为 µs。
+   *         Sample count, average, minimum and maximum, durations in µs.
    */
   [[nodiscard]] Summary GetSummary() const noexcept;
 
@@ -143,12 +138,15 @@ class DurationStatistics
   friend class ScopedMeasurement;
 
   /**
-   * @brief 提交一次已结束的作用域测量 / Submit one finished scoped measurement
-   * @param start 待测作用域的开始时间 / Start time of the measured scope
+   * @brief 提交一次已结束的作用域测量。
+   *        Submit one finished scoped measurement.
    *
-   * 结束时间在获取互斥锁之前读取，因此锁等待不会计入被测作用域。
-   * The end timestamp is read before acquiring the mutex, so lock contention is
+   * 结束时间在获取互斥锁之前读取，锁等待不计入被测作用域的耗时。
+   * The end timestamp is read before the mutex is acquired, so lock contention is
    * excluded from the measured duration.
+   *
+   * @param start 待测作用域的开始时间。
+   *              Start time of the measured scope.
    */
   void Record(LibXR::MicrosecondTimestamp start) noexcept;
 
