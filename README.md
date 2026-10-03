@@ -50,9 +50,9 @@ Configuration parameters: no constructor parameters.
 
 ## 5. 配置示例 / Configuration Example
 
-使用方在自己头文件的 manifest 中声明依赖：
+使用方在自己头文件的 manifest `depends` 中列出本库：
 
-The Module that uses it declares the dependency in the manifest of its header:
+A Module that uses this library lists it in the `depends` of the manifest of its header:
 
 ```text
 depends:
@@ -60,18 +60,9 @@ depends:
   ref: same-or-dev
 ```
 
-BSP 添加这样的模块并运行 `xrobot setup` 时，本库随 `depends` 自动解析和拉取；也可以显式添加：
+使用方包含 `DurationStatistics.hpp`，为每个被测位置持有一个 `XRobot::DurationStatistics`，在被测作用域内取得 `Measure()` 返回的对象，并在 `OnMonitor()` 中读取 `GetSummary()`：
 
-When a BSP adds such a Module and runs `xrobot setup`, this library is resolved and fetched through `depends`; it can also be added explicitly:
-
-```sh
-xrobot module add xrobot-org/DurationStatistics
-xrobot setup
-```
-
-在使用方的代码中：
-
-In the code of the using Module:
+The using Module includes `DurationStatistics.hpp`, holds one `XRobot::DurationStatistics` for each measured location, obtains the object returned by `Measure()` in the measured scope and reads `GetSummary()` in `OnMonitor()`:
 
 ```cpp
 #include "DurationStatistics.hpp"
