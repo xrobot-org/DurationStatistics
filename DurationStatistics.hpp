@@ -2,7 +2,7 @@
 
 // clang-format off
 /* === MODULE MANIFEST V2 ===
-module_description: DurationStatistics reusable library
+module_description: LibXR 作用域耗时统计库 / Scoped-duration statistics library for LibXR
 standalone: false
 depends: []
 === END MANIFEST === */
