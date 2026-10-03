@@ -197,7 +197,10 @@ inline DurationStatistics::Summary DurationStatistics::GetSummary() const noexce
     return {};
   }
 
-  return Summary{sample_count_, total_us_ / sample_count_, minimum_us_, maximum_us_};
+  return Summary{.sample_count = sample_count_,
+                 .average_us = total_us_ / sample_count_,
+                 .minimum_us = minimum_us_,
+                 .maximum_us = maximum_us_};
 }
 
 }  // namespace XRobot
