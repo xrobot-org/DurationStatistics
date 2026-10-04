@@ -36,13 +36,9 @@ In namespace `XRobot`:
 DurationStatistics() = default;
 ```
 
-依赖：无构造参数。
+默认构造，无构造参数。
 
-配置参数：无构造参数。
-
-Dependencies: no constructor parameters.
-
-Configuration parameters: no constructor parameters.
+Default-constructed, with no constructor parameters.
 
 ## 4. Topic
 
