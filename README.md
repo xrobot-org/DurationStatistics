@@ -8,13 +8,13 @@ DurationStatistics 是 LibXR 的作用域耗时统计库，累计测量结果，
 
 DurationStatistics 在 manifest 中标记为库（`standalone: false`），由其他模块引入使用。其他模块包含 `DurationStatistics.hpp`，并在自己的 manifest `depends` 中列出 `xrobot-org/DurationStatistics`，由此把它拉入工程。
 
-多个业务线程可以向同一个统计器记录数据；监控线程可以并发调用 `GetSummary()`，返回的四个字段来自同一个一致快照。记录和读取通过 LibXR `Mutex` 同步，仅在任务上下文调用。结束时间在加锁之前读取，锁等待不计入耗时。统计从对象构造后持续累计。
+多个业务线程可以向同一个统计器记录数据；监控线程可以并发调用 `GetSummary()`，返回的四个字段来自同一个一致快照。记录和读取通过 LibXR `Mutex` 同步，仅在任务上下文调用。结束时间在加锁之前读取，锁等待不计入耗时。统计从对象构造后持续累计；`GetSummaryAndReset()` 读取快照并清零，之后重新累计，用于按监视周期输出。
 
 DurationStatistics is a scoped-duration statistics library for LibXR. It accumulates measurements; the Module that uses it handles the output, typically by reading a snapshot in its `OnMonitor()` and choosing the output format.
 
 DurationStatistics is marked as a library in its manifest (`standalone: false`) and is used by other Modules. Other Modules include `DurationStatistics.hpp` and list `xrobot-org/DurationStatistics` in their manifest `depends`, which pulls it into the project.
 
-Multiple worker threads can record into one collector; a monitor thread can call `GetSummary()` concurrently, and the four returned fields come from one consistent snapshot. Recording and reading are synchronized by a LibXR `Mutex` and are called from task context only. The end time is read before the lock is taken, so lock contention is excluded from the measured duration. Statistics accumulate from the construction of the object onward.
+Multiple worker threads can record into one collector; a monitor thread can call `GetSummary()` concurrently, and the four returned fields come from one consistent snapshot. Recording and reading are synchronized by a LibXR `Mutex` and are called from task context only. The end time is read before the lock is taken, so lock contention is excluded from the measured duration. Statistics accumulate from the construction of the object onward; `GetSummaryAndReset()` reads the snapshot and clears it, after which the statistics start again, for output per monitor period.
 
 ## 2. 接口 / API
 
@@ -23,12 +23,14 @@ Multiple worker threads can record into one collector; a monitor thread can call
 - `DurationStatistics`：统计器，默认构造，复制与移动均被删除。
 - `ScopedMeasurement DurationStatistics::Measure()`：开始一次测量。返回的对象在析构时提交一次从构造到析构的微秒耗时，复制与移动均被删除，一次作用域只统计一次。`ScopedMeasurement` 覆盖完整的目标作用域，其生命周期不超过所属的 `DurationStatistics`。
 - `Summary DurationStatistics::GetSummary() const`：返回快照 `Summary`，字段 `sample_count`、`average_us`、`minimum_us`、`maximum_us`（`uint64_t`，单位 µs）。平均值为整数除法；零样本时所有字段为 `0`。
+- `Summary DurationStatistics::GetSummaryAndReset()`：返回自构造或上一次清零以来的快照 `Summary`，并在同一次加锁内清零，字段含义与 `GetSummary()` 相同。
 
 In namespace `XRobot`:
 
 - `DurationStatistics`: the collector; default-constructible, with copy and move deleted.
 - `ScopedMeasurement DurationStatistics::Measure()`: start one measurement. The returned object submits one duration in microseconds, from its construction to its destruction, when it is destroyed; copy and move are deleted, so one scope is counted once. A `ScopedMeasurement` covers the complete target scope and its lifetime ends before that of the owning `DurationStatistics`.
 - `Summary DurationStatistics::GetSummary() const`: return the `Summary` snapshot with the fields `sample_count`, `average_us`, `minimum_us`, `maximum_us` (`uint64_t`, in µs). The average uses integer division; all fields are `0` when no sample has been recorded.
+- `Summary DurationStatistics::GetSummaryAndReset()`: return the `Summary` snapshot since construction or the previous clear and clear the statistics under the same lock; the fields mean the same as in `GetSummary()`.
 
 ## 3. 构造接口 / Constructor
 

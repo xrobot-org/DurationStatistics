@@ -134,6 +134,25 @@ class DurationStatistics
    */
   [[nodiscard]] Summary GetSummary() const noexcept;
 
+  /**
+   * @brief 读取统计快照并清零。
+   *        Read a statistics snapshot and clear it.
+   *
+   * 返回自构造或上一次清零以来的统计，之后统计从零重新累计，所以每次读取只反映两次读取
+   * 之间的样本，用于按监视周期输出。快照与清零在同一次加锁内完成，没有样本落在两者之间。
+   * 字段含义与 `GetSummary()` 相同。
+   *
+   * The snapshot covers the samples since construction or the previous clear, and the
+   * statistics start again from zero, so each read reflects the samples between two
+   * reads; use it when the output is per monitor period. The snapshot and the clear
+   * happen under one lock, so no sample falls between them. The fields mean the same as
+   * in `GetSummary()`.
+   *
+   * @return 样本数、平均值、最小值和最大值，耗时单位为 µs。
+   *         Sample count, average, minimum and maximum, durations in µs.
+   */
+  [[nodiscard]] Summary GetSummaryAndReset() noexcept;
+
  private:
   friend class ScopedMeasurement;
 
@@ -149,6 +168,12 @@ class DurationStatistics
    *              Start time of the measured scope.
    */
   void Record(LibXR::MicrosecondTimestamp start) noexcept;
+
+  /**
+   * @brief 由累计值生成快照，调用者已持有互斥锁。
+   *        Build the snapshot from the accumulated values; the caller holds the mutex.
+   */
+  [[nodiscard]] Summary Snapshot() const noexcept;
 
   mutable LibXR::Mutex mutex_;  ///< 保护累计值 / Protects accumulated values
   uint64_t sample_count_ = 0;   ///< 已记录样本数 / Recorded sample count
@@ -189,9 +214,8 @@ inline void DurationStatistics::Record(LibXR::MicrosecondTimestamp start) noexce
   total_us_ += duration_us;
 }
 
-inline DurationStatistics::Summary DurationStatistics::GetSummary() const noexcept
+inline DurationStatistics::Summary DurationStatistics::Snapshot() const noexcept
 {
-  LibXR::Mutex::LockGuard lock(mutex_);
   if (sample_count_ == 0)
   {
     return {};
@@ -201,6 +225,23 @@ inline DurationStatistics::Summary DurationStatistics::GetSummary() const noexce
                  .average_us = total_us_ / sample_count_,
                  .minimum_us = minimum_us_,
                  .maximum_us = maximum_us_};
+}
+
+inline DurationStatistics::Summary DurationStatistics::GetSummary() const noexcept
+{
+  LibXR::Mutex::LockGuard lock(mutex_);
+  return Snapshot();
+}
+
+inline DurationStatistics::Summary DurationStatistics::GetSummaryAndReset() noexcept
+{
+  LibXR::Mutex::LockGuard lock(mutex_);
+  const Summary summary = Snapshot();
+  sample_count_ = 0;
+  total_us_ = 0;
+  minimum_us_ = 0;
+  maximum_us_ = 0;
+  return summary;
 }
 
 }  // namespace XRobot
