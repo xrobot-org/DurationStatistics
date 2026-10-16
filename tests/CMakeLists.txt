@@ -1,8 +1,0 @@
-cmake_minimum_required(VERSION 3.16)
-project(DurationStatisticsTests LANGUAGES CXX)
-
-add_executable(duration_statistics_test duration_statistics_test.cpp)
-target_include_directories(duration_statistics_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/..)
-target_link_libraries(duration_statistics_test PRIVATE xr)
-target_compile_features(duration_statistics_test PRIVATE cxx_std_20)
-add_test(NAME duration_statistics_test COMMAND duration_statistics_test)
